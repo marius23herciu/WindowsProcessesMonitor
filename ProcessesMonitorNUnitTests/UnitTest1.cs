@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using System.Threading;
+using Moq;
+using System.Runtime.CompilerServices;
 
 namespace ProcessesMonitorNUnitTests
 {
@@ -16,22 +18,11 @@ namespace ProcessesMonitorNUnitTests
         {
             windowsProcessesMonitoring = new WindowsProcessesMonitoring();
             startNotepad = new StartNotepad();
-            // Start a test process
             process = new Process();
             process.StartInfo.FileName = "notepad.exe";
             process.Start();
-            Thread.Sleep(1000); // Wait for the process to start
+            Thread.Sleep(1000);
         }
-
-        //[TearDown]
-        //public void TearDown()
-        //{
-        //    // Kill the test process
-        //    if (!process.HasExited)
-        //    {
-        //        process.Kill();
-        //    }
-        //}
 
         [Test]
         public void TestProcessMonitor()
@@ -42,18 +33,18 @@ namespace ProcessesMonitorNUnitTests
             int monitoringFrequency = 1;
 
             // Act
-            var thread = new Thread(() =>windowsProcessesMonitoring.ProcessesMonitor( processName, maxLifetime, monitoringFrequency));
+            var thread = new Thread(() => windowsProcessesMonitoring.ProcessesMonitor(processName, maxLifetime, monitoringFrequency));
             thread.Start();
             Thread.Sleep(TimeSpan.FromMinutes(monitoringFrequency));
         }
-        [TestCase("notepad", 3)]
-        public void ProcessesMonitorTest(string processName, int noOfNotepadsToOpen)
+        [TestCase("notepad", 5)]
+        public void ProcessesMonitorTestToCheckIfNumberOfInstancesOpenAreClosedAfterMaxLifetime(string processName, int noOfNotepadsToOpen)
         {
             // Arrange
-
             startNotepad.Start(noOfNotepadsToOpen);
             int maxLifetime = 1;
             int monitoringFrequency = 1;
+
             //Act
             var thread = new Thread(() => windowsProcessesMonitoring.ProcessesMonitor(processName, maxLifetime, monitoringFrequency));
             thread.Start();
@@ -64,22 +55,100 @@ namespace ProcessesMonitorNUnitTests
             //Assert
             Assert.That(notepad.Count, Is.EqualTo(0));
         }
-        [TestCase("notepad", 3)]
-        public void ProcessesMonitorTest2(string processName, int noOfNotepadsToOpen)
+        [TestCase("notepad", 5)]
+        public void ProcessesMonitorTestToCheckIfNumberOfInstancesOpenAreStillActiveIfMaxLifetimeNotReached(string processName, int noOfNotepadsToOpen)
         {
             // Arrange
-
             startNotepad.Start(noOfNotepadsToOpen);
-            int maxLifetime = 1;
+            int maxLifetime = 5;
             int monitoringFrequency = 1;
+
             //Act
             var thread = new Thread(() => windowsProcessesMonitoring.ProcessesMonitor(processName, maxLifetime, monitoringFrequency));
             thread.Start();
+
             var notepad = System.Diagnostics.Process.GetProcessesByName(processName);
 
             //Assert
             Assert.That(notepad.Count, Is.EqualTo(noOfNotepadsToOpen));
         }
-        
+        [TestCase("notepad", 3)]
+        public void ProcessesMonitorTestToCheckIfAfterOpenMoreInstancesOfAProcessAtTheEndAreActiveOnlyThoseWithinLifeSpan(string processName, int noOfNotepadsToOpen)
+        {
+            // Arrange
+            startNotepad.Start(noOfNotepadsToOpen);
+            int maxLifetime = 2;
+            int monitoringFrequency = 1;
+
+            //Act
+            var thread = new Thread(() => windowsProcessesMonitoring.ProcessesMonitor(processName, maxLifetime, monitoringFrequency));
+            thread.Start();
+            startNotepad.Start(noOfNotepadsToOpen);
+            Thread.Sleep(TimeSpan.FromMinutes(monitoringFrequency));
+
+            var notepad = System.Diagnostics.Process.GetProcessesByName(processName);
+
+            //Assert
+            Assert.That(notepad.Count, Is.EqualTo(noOfNotepadsToOpen));
+        }
+        [TestCase("notepad", 3, 5)]
+        public void ProcessesMonitorTestToCheckIfAfterOpenMoreInstancesOfAProcessAtTheEndAreActiveOnlyThoseWithinLifeSpan2(string processName, int noOfNotepadsToOpen, int noOfMonitoringFrequencyCycles)
+        {
+            // Arrange
+            startNotepad.Start(noOfNotepadsToOpen);
+            int maxLifetime = 2;
+            int monitoringFrequency = 1;
+
+            //Act
+            var thread = new Thread(() => windowsProcessesMonitoring.ProcessesMonitor(processName, maxLifetime, monitoringFrequency));
+            thread.Start();
+            for (int i = 0; i < noOfMonitoringFrequencyCycles; i++)
+            {
+                startNotepad.Start(noOfNotepadsToOpen);
+                Thread.Sleep(TimeSpan.FromMinutes(monitoringFrequency));
+            }
+
+            var notepad = System.Diagnostics.Process.GetProcessesByName(processName);
+
+            //Assert
+            Assert.That(notepad.Count, Is.EqualTo(noOfNotepadsToOpen));
+        }
+        [TestCase("notepad")]
+        public void ProcessesMonitorTestToCheckIfNumberOfInstancessIs0IfNeverAcitvateAProcess(string processName)
+        {
+            // Arrange
+            startNotepad.Start(0);
+            int maxLifetime = 5;
+            int monitoringFrequency = 1;
+
+            //Act
+            var thread = new Thread(() => windowsProcessesMonitoring.ProcessesMonitor(processName, maxLifetime, monitoringFrequency));
+            thread.Start();
+            Thread.Sleep(TimeSpan.FromMinutes(monitoringFrequency));
+
+            var notepad = System.Diagnostics.Process.GetProcessesByName(processName);
+
+            //Assert
+            Assert.That(notepad.Count, Is.EqualTo(0));
+        }
+        [TestCase("notepad")]
+        public void ProcessesMonitorTestToCheckIfNumberOfInstancessIs0AfterStartingWithExceedingLifespanProcesses(string processName)
+        {
+            // Arrange
+            startNotepad.Start(10);
+            int maxLifetime = 1;
+            int monitoringFrequency = 1;
+            Thread.Sleep(TimeSpan.FromMinutes(monitoringFrequency));
+
+            //Act
+            var thread = new Thread(() => windowsProcessesMonitoring.ProcessesMonitor(processName, maxLifetime, monitoringFrequency));
+            thread.Start();
+            Thread.Sleep(TimeSpan.FromMinutes(monitoringFrequency));
+
+            var notepad = System.Diagnostics.Process.GetProcessesByName(processName);
+
+            //Assert
+            Assert.That(notepad.Count, Is.EqualTo(0));
+        }
     }
-    }
+}

@@ -18,7 +18,7 @@ namespace ProcessesMonitorNUnitTests
             }
             for (int i = 0; i < noOfNotepadsToOpen; i++)
             {
-                Process.Start(new ProcessStartInfo { FileName = @"C:\Users\seb\Desktop\WindowsProcessesMonitor\WindowsProcessesMonitor\bin\Debug\net6.0\test.txt", UseShellExecute = true });
+                Process.Start(new ProcessStartInfo { FileName = "notepad.exe"});
             }
         }
     }

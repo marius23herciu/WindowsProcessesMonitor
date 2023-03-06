@@ -11,7 +11,7 @@ namespace WindowsProcessesMonitor
     {
         public void ProcessesMonitor(string processName, int maxLifetime, int monitoringFrequency)
         {
-            // Start monitoring processes
+            // Start monitoring process
             Console.WriteLine($"Monitoring process {processName} with a maximum lifetime of {maxLifetime} minutes and a monitoring frequency of {monitoringFrequency} minutes.");
             Console.WriteLine("Press Q to end monitoring process");
             while (true)
